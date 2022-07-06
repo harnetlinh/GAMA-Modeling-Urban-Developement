@@ -11,108 +11,113 @@ model Urban
 global {
 	
 	shape_file roads_shape_file <- shape_file("../includes/roads.shp");
-	shape_file house_shape_file <- shape_file("../includes/buildings.shp");
 
 	geometry shape <- envelope(roads_shape_file);
 	float step <- 10#s;
 	float house_nb <- 1;
 	graph road_network;
 	map<road, float> road_weights;
-	
-	reflex update_weight {
-		road_weights <- road as_map(each::each.shape.perimeter/each.speed_rate);
-
-	}
+	int nb_increase_house <- 3;
+	int nb_increase_service <- 3;
 	
 	init{
 		create road from: roads_shape_file;
-		create house from: house_shape_file with:(height: float(get("HEIGHT")));
 		road_network <- as_edge_graph(road);
-//		ask house{
-//			int num_to_create <- round(house_nb*shape.area);
-//			create household number:num_to_create{
-//				location <- any_location_in(one_of(myself));
-//			}
+		create house number: 1;
+		create service number: 1;
+
+	}
+	reflex pollution_evolution{
+		//ask all cells to decrease their level of pollution
+		ask cell {pollution <- pollution * 0.7;}
+		
+		//diffuse the pollutions to neighbor cells
+		diffuse var: pollution on: cell proportion: 0.9 ;
 	}
 	
-	}
+}
 	
-species house {
-	int height;
+species house parent: generic_species {
+	rgb color <- #blue;
+	int nb_increase <- nb_increase_house;
 	
-	aspect default{
-		draw shape color: #gray;
-	}
-	aspect threeD{
-		draw shape depth: height texture: ["../includes/roof_top.png","../includes/texture5.jpg"];
+	aspect house {
+		draw circle(20.0) color: #blue;
 	}
 }	
-species service {
-	//chiem 1 o trong grid
+
+species service parent: generic_species  {
+	rgb color <- #orange;
+	int nb_increase <- nb_increase_service;
+	cell choose_cell {
+//		return (my_cell.neighbors2)
+		return one_of(my_cell.list_neighbors);
+	}
+	aspect service {
+		draw circle(20.0) color: #orange;
+	}
 }
 
-//same inhabitant -- Ho 
-species household skills:[moving] {
-	// độ vui vẻ : proba_
-	// speed ;
-	// color
-	point start;
-	float happy <- 0.05;
-	float speed <- 5 #km/#h;
-	rgb color <- rnd_color(255);
-	
-	float pollution_produced <- rnd(90.0,250.0);
-	
-	reflex leave when: start = nil and flip(happy){
-		start <- any_location_in(one_of(house));
-		write name + " " + start;
-	}
-	
-	reflex move when: start != nil{
-		do goto target: start on: road_network move_weights: road_weights;
-		if (location = start){
-			start <- nil;
-		} else{
-			urban_cell my_cell <- urban_cell(location);
-			my_cell.grid_value <- my_cell.grid_value + pollution_produced; 
-		}
-	}
-	
-	
-	
-	aspect default{
-		draw circle(5) color:color;
-	}
-	
-	
-	//cho diem next the city
-	
+
+species household {
+
 }
 
 species road{
-	float capacity <- 1 + shape.perimeter/30;
-	int nb_household <- 0 update: length(household at_distance 1#m); //
-	float speed_rate <- 1.0 update: exp(-nb_household/capacity) min: 0.1;
-	
 	aspect default{
-		draw shape buffer ((1- speed_rate)*5) color: #red;
+		draw shape color: #black;
+	}
+	
+	reflex available_cell{
+		cell list_neighbors <- (self neighbors_at 2);
+	} 
+	
+}
+
+species generic_species {
+	cell my_cell <- one_of(cell);
+	int nb_increase;
+	
+	init {
+		location <- my_cell.location;
+	}
+	
+	reflex increase {
+		create species(self) number: nb_increase {
+			my_cell <- my_cell;
+			location <- my_cell.location;
+		}
+	}
+	
+	cell choose_cell {
+		return nil;
 	}
 }
 
 //grid urban_cell width: 50 height: 50   toan map 
-grid urban_cell width: 50 height: 50 {
-	reflex decrease_urban when: every(1 #h){
-		grid_value <- grid_value * 0.9;
-	}	
+grid cell width: 50 height: 50 neighbors: 8 {
+	//pollution level
+	float pollution <- 0.0 min: 0.0 max: 100.0;
+	
+	//color updated according to the pollution level (from red - very polluted to green - no pollution)
+	rgb color <- #green update: rgb(255 *(pollution/30.0) , 255 * (1 - (pollution/30.0)), 0.0);
+	
+	
+	
+	list<cell> list_neighbors <- neighbors_of(topology(self), self, 8);
 }
 
 experiment urban_development type: gui {
+	float minimum_cycle_duration <- 0.01;
+	
 	output {
-		display map type: opengl{
-			mesh urban_cell color: #red transparency: 0.5 scale: 0.05 triangulation: true smooth: true refresh: true; 
+		display map type: java2D{
+			
 			species road aspect: default;
-			species house aspect: default;
-			species household aspect: default;
+			
+			grid cell lines: #black elevation: pollution * 3.0 triangulation: true transparency: 0.7; 
+			species house aspect: house;
+			species service aspect: service;
 			
 		}
 	}
