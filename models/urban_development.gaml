@@ -16,8 +16,10 @@ global {
 	int house_nb <- 1;
 	graph road_network;
 	map<road, float> road_weights;
-	int nb_increase_house <- 3;
+	int nb_increase_house <- 2;
 	int nb_increase_service <- 4;
+	int nb_max_decrease_house <- 3;
+	int nb_max_decrease_service <- 3;
 	
 	init{
 		create road from: roads_shape_file;
@@ -30,7 +32,7 @@ global {
 				my_cell.available <- false;
 				location <- my_cell.location;
 			}
-			create species(service) number: 2 {
+			create species(service) number: 3 {
 				my_cell <- one_of(cell where each.available );
 				my_cell.available <- false;
 				location <- my_cell.location;
@@ -44,6 +46,12 @@ global {
 		//diffuse the pollutions to neighbor cells
 		diffuse var: pollution on: cell proportion: 0.9 ;
 	}
+	
+//	reflex check{
+//		if(length(house) = 0 or length(service) = 0){
+//			do die;
+//		}
+//	}
 	
 }
 	
@@ -87,7 +95,7 @@ species house parent: generic_species {
 	}
 	
 	action decrease_species {
-		int rnd_die_species <- rnd(1,4);
+		int rnd_die_species <- rnd(1,nb_max_decrease_house);
 		if(length(house) >= rnd_die_species)
 		{
 			loop times: rnd_die_species{
@@ -145,7 +153,7 @@ species service parent: generic_species  {
 		draw circle(20.0) color: #orange;
 	}
 	action decrease_species {
-		int rnd_die_species <- rnd(1,4);
+		int rnd_die_species <- rnd(1,nb_max_decrease_service);
 		if(length(service) >= rnd_die_species)
 		{
 			loop times: rnd_die_species{
@@ -227,11 +235,11 @@ species generic_species {
 			cell _my_cell <- self.choose_cell();
 			if((length(cell where each.available) >= 1) and (_my_cell != nil))
 			{
-					create species(self) number: 1 {
-						my_cell <- _my_cell;
-						my_cell.available <- false;
-						location <- my_cell.location;
-					}
+				create species(self) number: 1 {
+					my_cell <- _my_cell;
+					my_cell.available <- false;
+					location <- my_cell.location;
+				}
 			}
 		}
 		
@@ -276,13 +284,13 @@ grid cell width: 50 height: 50 neighbors: 8 {
 	bool available <- false;
 }
 
-experiment urban_development type: gui until: (length(house) = 0 or length(service) = 0){
+experiment urban_development type: gui until: (length(house) < 1 or length(service) < 1){
 	float minimum_cycle_duration <- 0.1;
 	
 	
 	output {
-//		monitor "Number of house" value: length(house);
-//		monitor "Number of service" value: length(service);
+		monitor "Number of house" value: length(house);
+		monitor "Number of service" value: length(service);
 		display map type: java2D{
 			
 			species road aspect: default;
