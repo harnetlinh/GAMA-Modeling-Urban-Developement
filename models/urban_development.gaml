@@ -16,10 +16,13 @@ global {
 	int house_nb <- 1;
 	graph road_network;
 	map<road, float> road_weights;
-	int nb_increase_house <- 2;
-	int nb_increase_service <- 4;
+	int nb_increase_house <- 3;
+	int nb_increase_service <- 3;
 	int nb_max_decrease_house <- 3;
-	int nb_max_decrease_service <- 3;
+	int nb_max_decrease_service <- 2;
+	float param_X_service_pollution <- 1.2;
+	
+	int nb_increase_green_space <- 1;
 	
 	init{
 		create road from: roads_shape_file;
@@ -37,6 +40,30 @@ global {
 				my_cell.available <- false;
 				location <- my_cell.location;
 			}
+//			create species(green_space) number: 1 {
+//				my_cell <- one_of(cell where each.available );
+//				my_cell.available <- false;
+//				location <- my_cell.location;
+//			}
+		}
+	}
+	reflex create_house_or_service_if_none{
+		if(length(cell where each.available) > 0)
+		{
+			if(length(house) = 0){
+				create species(house) number: 5 {
+					my_cell <- one_of(cell where each.available );
+					my_cell.available <- false;
+					location <- my_cell.location;
+				}
+			}
+			if(length(service) = 0) {
+				create species(service) number: 3 {
+					my_cell <- one_of(cell where each.available );
+					my_cell.available <- false;
+					location <- my_cell.location;
+				}
+			}
 		}
 	}
 	reflex pollution_evolution{
@@ -46,19 +73,26 @@ global {
 		//diffuse the pollutions to neighbor cells
 		diffuse var: pollution on: cell proportion: 0.9 ;
 	}
+	reflex toto when: time = 3 {
+        do pause;
+    }
 	
-//	reflex check{
-//		if(length(house) = 0 or length(service) = 0){
-//			do die;
-//		}
-//	}
+	action create_green_space {
+		list<cell> current_cell <- cell overlapping #user_location;
+		write current_cell[0];
+		create species(green_space) number: 1 {
+			my_cell <- current_cell[0];
+			my_cell.available <- false;
+			location <- my_cell.location;
+		}
+   }
 	
 }
 	
 species house parent: generic_species {
 	rgb color <- #blue;
 	int nb_increase <- nb_increase_house;
-	float happiness <- 0.0;
+	float happiness <- rnd(6.0,10.0);
 	
 	reflex check_happines {
 		map<string,agent> list_service;
@@ -81,8 +115,7 @@ species house parent: generic_species {
 				}
 			}
 		}
-		self.happiness <- 10 - current_cell.pollution * 1.25 + nb_neighbor_service;
-//		write(self.happiness);
+		self.happiness <- self.happiness + length(list_service) - current_cell.pollution * param_X_service_pollution;
 		if(self.happiness <= 0){
 			do die;
 		}
@@ -106,7 +139,6 @@ species house parent: generic_species {
 					ask one_of(choosen_generic_species){
 						do die;
 					}
-//					write(choosen_species_cell[0]);
 					choosen_species_cell[0].available <- true;
 				}
 			}
@@ -129,7 +161,7 @@ species service parent: generic_species  {
 				list<agent> sp <- agents_inside(j);
 				
 				if(!empty(sp)){
-					write(sp);
+//					write(sp);
 					if(contains(sp[0].name,"house")){
 						nb_house <- nb_house + 1;
 						backup_cell <- i;
@@ -164,11 +196,48 @@ species service parent: generic_species  {
 					ask one_of(choosen_generic_species){
 						do die;
 					}
-//					write(choosen_species_cell[0]);
 					choosen_species_cell[0].available <- true;
 				}
 			}
 		}
+	}
+}
+
+species green_space parent: generic_species{
+	rgb color <- #green;
+	int nb_increase <- nb_increase_green_space;
+	cell choose_cell {
+		cell backup_cell <- nil;
+		loop i over: (cell where each.available) {
+			
+			list<cell> neighbors <- i.neighbors;
+			int nb_house <- 0;
+			loop j over: neighbors{
+				list<agent> sp <- agents_inside(j);
+				
+				if(!empty(sp)){
+//					write(sp);
+					if(contains(sp[0].name,"house")){
+						nb_house <- nb_house + 1;
+						backup_cell <- i;
+					}
+					if(nb_house >= 2){
+						break;
+					}
+				}else{
+					break;
+				}
+			}
+			if(nb_house >= 2){
+				return i;
+				break;
+			}
+		}
+		return backup_cell;
+	}
+	
+	aspect green_space {
+		draw circle(20.0) color: #green;
 	}
 }
 
@@ -198,29 +267,41 @@ species road{
 	}
 	reflex check_pollution {
 		list<cell> _current_cell <- (cell overlapping self);
-//		write _current_cell;
 		cell current_cell <- _current_cell[0];
 		list<cell> neighbors_road <- current_cell.neighbors;
+		map<string,agent> list_service;
+		map<string,agent> list_house;
+		map<string,agent> list_green_space;
 		loop i over: neighbors_road {
-			float nb_neighbor_house <- 0.0;
-			float nb_neighbor_service <- 0.0;
 			list<cell> neighbors <- i.neighbors;	
 			loop j over: neighbors{
 				list<agent> sp <- agents_inside(j);
 				if(!empty(sp)){
-					if(contains(sp[0].name,"house")){
-						nb_neighbor_house <- nb_neighbor_house + 1.0;
-					}
 					if(contains(sp[0].name,"service")){
-						nb_neighbor_service <- nb_neighbor_service + 1.0;
-
+						if (!(list_service contains sp[0].name)){
+							add sp[0].name :: sp[0] to: list_service;
+						}
+					}
+					if(contains(sp[0].name,"house")){
+						if (!(list_house contains sp[0].name)){
+							add sp[0].name :: sp[0] to: list_house;
+						}
+					}
+					if(contains(sp[0].name,"green_space")){
+						if (!(list_green_space contains sp[0].name)){
+							add sp[0].name :: sp[0] to: list_green_space;
+						}
+					}
 					}
 				}
 			}
-			loop j over: neighbors {
-				j.pollution <- (nb_neighbor_house + nb_neighbor_service * 10);
+		loop i over: neighbors_road{
+			list<cell> neighbors <- i.neighbors;	
+			loop j over: neighbors{
+				j.pollution <- (length(list_house) + length(list_service) * 10 - length(list_green_space) * 10);
 			}
 		}
+		
 	}
 }
 
@@ -262,16 +343,7 @@ species generic_species {
 	}
 }
 
-species green_space parent: generic_species{
-	rgb color <- #green;
-	int nb_increase <- nb_increase_service;
-//	cell choose_cell {
-//		return one_of(my_cell.list_neighbors);
-//	}
-	aspect green_space {
-		draw circle(80.0) color: #green;
-	}
-}
+
 
 grid cell width: 50 height: 50 neighbors: 8 {
 	//pollution level
@@ -282,15 +354,34 @@ grid cell width: 50 height: 50 neighbors: 8 {
 
 	
 	bool available <- false;
+	
+	action create_cell{
+		cell this_cell <- self;
+		create species(green_space) number: 1 {
+			my_cell <- this_cell;
+			my_cell.available <- false;
+			location <- my_cell.location;
+		}
+	}
 }
 
 experiment urban_development type: gui until: (length(house) < 1 or length(service) < 1){
-	float minimum_cycle_duration <- 0.1;
-	
-	
+	float minimum_cycle_duration <- 0.01;
+	parameter "Household max leave:" var: nb_max_decrease_house min: 1 max: 10 step: 1;
+	parameter "Household increase each year:" var: nb_increase_house min: 1 max: 10 step: 1;
+	parameter "Service max leave:" var: nb_max_decrease_service min: 1 max: 10 step: 1;
+	parameter "Service increase each year:" var: nb_increase_service min: 1 max: 10 step: 1;
+	parameter "X parameter service pollution:" var: param_X_service_pollution min: 0.1 max: 2.0 step: 0.01;
+	parameter "Green Space each year:" var: nb_increase_green_space min: 0 max: 2 step: 1;
 	output {
 		monitor "Number of house" value: length(house);
 		monitor "Number of service" value: length(service);
+		monitor "Number of green space" value: length(green_space);
+		// giá trị trung bình happiness của house
+		// giá trị max happiness của house
+		// giá trị min happiness của house
+		// số lượng house leave mỗi cycle
+		
 		display map type: java2D{
 			
 			species road aspect: default;
@@ -298,8 +389,15 @@ experiment urban_development type: gui until: (length(house) < 1 or length(servi
 			grid cell lines: #black elevation: pollution * 3.0 triangulation: true transparency: 0.8 refresh: true; 
 			species house aspect: house refresh: true;
 			species service aspect: service refresh: true;
-//			species green_space aspect: green_space;
-			
+			species green_space aspect: green_space;
+			event mouse_down action: create_green_space;
+		}
+		
+		display chart_display refresh: every(1 #cycles) {
+			chart "House and service" type: series {
+				data "Number of house" value: length(house) color: #blue;
+				data "Number of service" value: length(service) color: #orange;
+			}
 		}
 	}
 }
