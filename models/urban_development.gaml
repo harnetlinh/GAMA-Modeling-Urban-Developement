@@ -80,11 +80,6 @@ global {
 //		write x;
       create green_space with: [location:#user_location];
    }
-//	reflex check{
-//		if(length(house) = 0 or length(service) = 0){
-//			do die;
-//		}
-//	}
 	
 }
 	
@@ -138,7 +133,6 @@ species house parent: generic_species {
 					ask one_of(choosen_generic_species){
 						do die;
 					}
-//					write(choosen_species_cell[0]);
 					choosen_species_cell[0].available <- true;
 				}
 			}
@@ -196,7 +190,6 @@ species service parent: generic_species  {
 					ask one_of(choosen_generic_species){
 						do die;
 					}
-//					write(choosen_species_cell[0]);
 					choosen_species_cell[0].available <- true;
 				}
 			}
@@ -358,21 +351,27 @@ grid cell width: 50 height: 50 neighbors: 8 {
 }
 
 experiment urban_development type: gui until: (length(house) < 1 or length(service) < 1){
-	float minimum_cycle_duration <- 0.1;
-	
-	
+	float minimum_cycle_duration <- 0.01;
+	parameter "Household max leave:" var: nb_max_decrease_house min: 1 max: 10 step: 1;
+	parameter "Household increase each year:" var: nb_increase_house min: 1 max: 10 step: 1;
+	parameter "Service max leave:" var: nb_max_decrease_service min: 1 max: 10 step: 1;
+	parameter "Service increase each year:" var: nb_increase_service min: 1 max: 10 step: 1;
+	parameter "X parameter service pollution:" var: param_X_service_pollution min: 0.1 max: 2.0 step: 0.01;
+	parameter "Green Space each year:" var: nb_increase_green_space min: 0 max: 2 step: 1;
 	output {
 		monitor "Number of house" value: length(house);
 		monitor "Number of service" value: length(service);
+		monitor "Number of green space" value: length(green_space);
+//		monitor "Happiness max" value: ((house collect(each.happines)) max_of (each));
+		
 		display map type: java2D{
 			
 			species road aspect: default;
 			
-			grid cell lines: #black elevation: pollution * 3.0 triangulation: true transparency: 0.8 refresh: true; 
+			grid cell elevation: pollution * 3.0 triangulation: true transparency: 0.8 refresh: true; 
 			species house aspect: house refresh: true;
 			species service aspect: service refresh: true;
 			species green_space aspect: green_space;
-			
 		}
 	}
 }
