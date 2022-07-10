@@ -40,11 +40,11 @@ global {
 				my_cell.available <- false;
 				location <- my_cell.location;
 			}
-			create species(green_space) number: 1 {
-				my_cell <- one_of(cell where each.available );
-				my_cell.available <- false;
-				location <- my_cell.location;
-			}
+//			create species(green_space) number: 1 {
+//				my_cell <- one_of(cell where each.available );
+//				my_cell.available <- false;
+//				location <- my_cell.location;
+//			}
 		}
 	}
 	reflex create_house_or_service_if_none{
@@ -73,12 +73,18 @@ global {
 		//diffuse the pollutions to neighbor cells
 		diffuse var: pollution on: cell proportion: 0.9 ;
 	}
+	reflex toto when: time = 3 {
+        do pause;
+    }
 	
-	user_command "Create Green Space here" {
-//		write #user_location;
-		cell x <- cell grid_at #user_location;
-//		write x;
-      create green_space with: [location:#user_location];
+	action create_green_space {
+		list<cell> current_cell <- cell overlapping #user_location;
+		write current_cell[0];
+		create species(green_space) number: 1 {
+			my_cell <- current_cell[0];
+			my_cell.available <- false;
+			location <- my_cell.location;
+		}
    }
 	
 }
@@ -348,6 +354,15 @@ grid cell width: 50 height: 50 neighbors: 8 {
 
 	
 	bool available <- false;
+	
+	action create_cell{
+		cell this_cell <- self;
+		create species(green_space) number: 1 {
+			my_cell <- this_cell;
+			my_cell.available <- false;
+			location <- my_cell.location;
+		}
+	}
 }
 
 experiment urban_development type: gui until: (length(house) < 1 or length(service) < 1){
@@ -362,16 +377,27 @@ experiment urban_development type: gui until: (length(house) < 1 or length(servi
 		monitor "Number of house" value: length(house);
 		monitor "Number of service" value: length(service);
 		monitor "Number of green space" value: length(green_space);
-//		monitor "Happiness max" value: ((house collect(each.happines)) max_of (each));
+		// giá trị trung bình happiness của house
+		// giá trị max happiness của house
+		// giá trị min happiness của house
+		// số lượng house leave mỗi cycle
 		
 		display map type: java2D{
 			
 			species road aspect: default;
 			
-			grid cell elevation: pollution * 3.0 triangulation: true transparency: 0.8 refresh: true; 
+			grid cell lines: #black elevation: pollution * 3.0 triangulation: true transparency: 0.8 refresh: true; 
 			species house aspect: house refresh: true;
 			species service aspect: service refresh: true;
 			species green_space aspect: green_space;
+			event mouse_down action: create_green_space;
+		}
+		
+		display chart_display refresh: every(1 #cycles) {
+			chart "House and service" type: series {
+				data "Number of house" value: length(house) color: #blue;
+				data "Number of service" value: length(service) color: #orange;
+			}
 		}
 	}
 }
