@@ -355,14 +355,14 @@ grid cell width: 50 height: 50 neighbors: 8 {
 	
 	bool available <- false;
 	
-	action create_cell{
-		cell this_cell <- self;
-		create species(green_space) number: 1 {
-			my_cell <- this_cell;
-			my_cell.available <- false;
-			location <- my_cell.location;
-		}
-	}
+//	action create_cell{
+//		cell this_cell <- self;
+//		create species(green_space) number: 1 {
+//			my_cell <- this_cell;
+//			my_cell.available <- false;
+//			location <- my_cell.location;
+//		}
+//	}
 }
 
 experiment urban_development type: gui until: (length(house) < 1 or length(service) < 1){
