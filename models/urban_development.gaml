@@ -11,7 +11,8 @@ model Urban
 global {
 	
 	shape_file roads_shape_file <- shape_file("../includes/roads.shp");
-
+//	float step <- 1 #day;
+//	date starting_date <- date([2000,1,1,0,0,0]);
 	geometry shape <- envelope(roads_shape_file);
 	int house_nb <- 1;
 	graph road_network;
@@ -51,14 +52,14 @@ global {
 		if(length(cell where each.available) > 0)
 		{
 			if(length(house) = 0){
-				create species(house) number: 5 {
+				create species(house) number: 1 {
 					my_cell <- one_of(cell where each.available );
 					my_cell.available <- false;
 					location <- my_cell.location;
 				}
 			}
 			if(length(service) = 0) {
-				create species(service) number: 3 {
+				create species(service) number: 1 {
 					my_cell <- one_of(cell where each.available );
 					my_cell.available <- false;
 					location <- my_cell.location;
@@ -73,7 +74,7 @@ global {
 		//diffuse the pollutions to neighbor cells
 		diffuse var: pollution on: cell proportion: 0.9 ;
 	}
-	reflex toto when: time = 3 {
+	reflex toto when: cycle = 1 {
         do pause;
     }
 	
@@ -92,7 +93,7 @@ global {
 species house parent: generic_species {
 	rgb color <- #blue;
 	int nb_increase <- nb_increase_house;
-	float happiness <- rnd(6.0,10.0);
+	float happiness <- rnd(5.0,10.0);
 	
 	reflex check_happines {
 		map<string,agent> list_service;
@@ -128,7 +129,7 @@ species house parent: generic_species {
 	}
 	
 	action decrease_species {
-		int rnd_die_species <- rnd(1,nb_max_decrease_house);
+		int rnd_die_species <- rnd(0,nb_max_decrease_house);
 		if(length(house) >= rnd_die_species)
 		{
 			loop times: rnd_die_species{
@@ -185,7 +186,7 @@ species service parent: generic_species  {
 		draw circle(20.0) color: #orange;
 	}
 	action decrease_species {
-		int rnd_die_species <- rnd(1,nb_max_decrease_service);
+		int rnd_die_species <- rnd(0,nb_max_decrease_service);
 		if(length(service) >= rnd_die_species)
 		{
 			loop times: rnd_die_species{
@@ -332,11 +333,11 @@ species generic_species {
 //		empty
 	}
 	
-	reflex increase {
+	reflex increase{
 		do increase_species();
 	}
 	
-	reflex decrease {
+	reflex decrease{
 		do decrease_species();
 	}
 	
@@ -369,19 +370,21 @@ grid cell width: 50 height: 50 neighbors: 8 {
 
 experiment urban_development type: gui until: (length(house) < 1 or length(service) < 1){
 	float minimum_cycle_duration <- 0.01;
-	parameter "Household max leave:" var: nb_max_decrease_house min: 1 max: 10 step: 1;
+	parameter "Household max leave:" var: nb_max_decrease_house min: 0 max: 10 step: 1;
 	parameter "Household increase each year:" var: nb_increase_house min: 1 max: 10 step: 1;
-	parameter "Service max leave:" var: nb_max_decrease_service min: 1 max: 10 step: 1;
+	parameter "Service max leave:" var: nb_max_decrease_service min: 0 max: 10 step: 1;
 	parameter "Service increase each year:" var: nb_increase_service min: 1 max: 10 step: 1;
 	parameter "X parameter service pollution:" var: param_X_service_pollution min: 0.1 max: 2.0 step: 0.01;
 	parameter "Green Space each year:" var: nb_increase_green_space min: 0 max: 2 step: 1;
 	output {
-		monitor "Number of house" value: length(house);
-		monitor "Number of service" value: length(service);
-		monitor "Number of green space" value: length(green_space);
-		monitor "Max happiness" value: (house with_max_of(each.happiness)).happiness;
-		monitor "Max happiness" value: (house with_min_of(each.happiness)).happiness;
-		monitor "Average happiness" value: (house mean_of(each.happiness));
+		monitor "1.Number of house" value: length(house);
+		monitor "2.Number of service" value: length(service);
+		monitor "3.Number of green space" value: length(green_space);
+		monitor "4.Max happiness" value: (house with_max_of(each.happiness)).happiness;
+		monitor "5.Min happiness" value: (house with_min_of(each.happiness)).happiness;
+		monitor "6.Average happiness" value: (house mean_of(each.happiness));
+//		monitor "7.Number of house leave per cycle" value: length(house where (each.happiness <= 0)) ;
+//		monitor "Step" value: current_date;
 		// số lượng house leave mỗi cycle
 		
 		display map type: java2D{
