@@ -208,29 +208,31 @@ species green_space parent: generic_species{
 	int nb_increase <- nb_increase_green_space;
 	cell choose_cell {
 		cell backup_cell <- nil;
-		loop i over: (cell where each.available) {
-			
-			list<cell> neighbors <- i.neighbors;
-			int nb_house <- 0;
-			loop j over: neighbors{
-				list<agent> sp <- agents_inside(j);
+		if(length(service) >= 30){
+			loop i over: (cell where each.available) {
 				
-				if(!empty(sp)){
-//					write(sp);
-					if(contains(sp[0].name,"house")){
-						nb_house <- nb_house + 1;
-						backup_cell <- i;
-					}
-					if(nb_house >= 2){
+				list<cell> neighbors <- i.neighbors;
+				int nb_house <- 0;
+				loop j over: neighbors{
+					list<agent> sp <- agents_inside(j);
+					
+					if(!empty(sp)){
+	//					write(sp);
+						if(contains(sp[0].name,"house")){
+							nb_house <- nb_house + 1;
+							backup_cell <- i;
+						}
+						if(nb_house >= 2){
+							break;
+						}
+					}else{
 						break;
 					}
-				}else{
+				}
+				if(nb_house >= 2){
+					return i;
 					break;
 				}
-			}
-			if(nb_house >= 2){
-				return i;
-				break;
 			}
 		}
 		return backup_cell;
@@ -377,9 +379,9 @@ experiment urban_development type: gui until: (length(house) < 1 or length(servi
 		monitor "Number of house" value: length(house);
 		monitor "Number of service" value: length(service);
 		monitor "Number of green space" value: length(green_space);
-		// giá trị trung bình happiness của house
-		// giá trị max happiness của house
-		// giá trị min happiness của house
+		monitor "Max happiness" value: (house with_max_of(each.happiness)).happiness;
+		monitor "Max happiness" value: (house with_min_of(each.happiness)).happiness;
+		monitor "Average happiness" value: (house mean_of(each.happiness));
 		// số lượng house leave mỗi cycle
 		
 		display map type: java2D{
@@ -393,10 +395,15 @@ experiment urban_development type: gui until: (length(house) < 1 or length(servi
 			event mouse_down action: create_green_space;
 		}
 		
-		display chart_display refresh: every(1 #cycles) {
+		display chart_house_and_service_display refresh: every(1 #cycles) {
 			chart "House and service" type: series {
 				data "Number of house" value: length(house) color: #blue;
 				data "Number of service" value: length(service) color: #orange;
+			}
+		}
+		display chart_happiness_display refresh: every(1 #cycles) {
+			chart "Average happiness" type: series {
+				data "Average happiness" value: (house mean_of(each.happiness)) color: #pink;
 			}
 		}
 	}
