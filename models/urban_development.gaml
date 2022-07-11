@@ -18,10 +18,12 @@ global {
 	graph road_network;
 	map<road, float> road_weights;
 	int nb_increase_house <- 3;
-	int nb_increase_service <- 3;
+	int nb_increase_service <- 5;
 	int nb_max_decrease_house <- 3;
 	int nb_max_decrease_service <- 2;
-	float param_X_service_pollution <- 1.2;
+	float param_X_service_pollution <- 1.0;
+	int nb_max_green_space <- 20;
+	int cost_green_space_by_service <- 10;
 	
 	int nb_increase_green_space <- 1;
 	
@@ -74,7 +76,7 @@ global {
 		//diffuse the pollutions to neighbor cells
 		diffuse var: pollution on: cell proportion: 0.9 ;
 	}
-	reflex toto when: cycle = 1 {
+	reflex toto when: time = 3{
         do pause;
     }
 	
@@ -87,13 +89,25 @@ global {
 			location <- my_cell.location;
 		}
    }
+//   reflex check_winner{
+//   		if(length(house) > 0 and length(service) > 0 and time = 50){
+//   			bool result <- user_confirm('You win ', 'You are the winner! Do you want to continue. Click Ok to shutdown, cancel to continue');
+//   			if(result){
+//   				do die;
+//   			}
+//   			
+//   		}else if((length(house) = 0 or length(service) = 0) and time < 50){
+//   			bool result <- user_confirm('You lose ', 'You are the loser');
+//   			do die;
+//   		}
+//   }
 	
 }
 	
 species house parent: generic_species {
 	rgb color <- #blue;
 	int nb_increase <- nb_increase_house;
-	float happiness <- rnd(5.0,10.0);
+	float happiness <- rnd(7.0,10.0);
 	
 	reflex check_happines {
 		map<string,agent> list_service;
@@ -209,7 +223,18 @@ species green_space parent: generic_species{
 	int nb_increase <- nb_increase_green_space;
 	cell choose_cell {
 		cell backup_cell <- nil;
-		if(length(service) >= 30){
+		if(length(service) >= cost_green_space_by_service){
+			if(length(green_space) >= nb_max_green_space){
+				list<cell> current_cell <- cell overlapping one_of(green_space);
+				if(!empty(current_cell)){
+					list<cell> choosen_species_cell <- [one_of(current_cell)];
+					list<generic_species> choosen_generic_species <- green_space inside choosen_species_cell[0];
+					ask one_of(choosen_generic_species){
+						do die;
+					}
+					choosen_species_cell[0].available <- true;
+				}
+			}
 			loop i over: (cell where each.available) {
 				
 				list<cell> neighbors <- i.neighbors;
@@ -376,6 +401,8 @@ experiment urban_development type: gui until: (length(house) < 1 or length(servi
 	parameter "Service increase each year:" var: nb_increase_service min: 1 max: 10 step: 1;
 	parameter "X parameter service pollution:" var: param_X_service_pollution min: 0.1 max: 2.0 step: 0.01;
 	parameter "Green Space each year:" var: nb_increase_green_space min: 0 max: 2 step: 1;
+	parameter "Max number of Green Space:" var: nb_max_green_space min: 1 max: 100 step: 1;
+	parameter "Cost of Green Space (by service)" var: cost_green_space_by_service min: 0 max: 300 step: 1;
 	output {
 		monitor "1.Number of house" value: length(house);
 		monitor "2.Number of service" value: length(service);
